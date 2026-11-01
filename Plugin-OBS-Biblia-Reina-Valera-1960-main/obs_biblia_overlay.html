@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Biblia OBS — Overlay</title>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=EB+Garamond:ital,wght@0,400;0,500;1,400&display=swap" rel="stylesheet">
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  
+  body {
+    width: 720px; 
+    height: 720px;
+    background: transparent;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;      /* ← Cambiado: permite control vertical */
+    align-items: center;         /* ← Clave: centrado horizontal */
+    justify-content: center;     /* ← Centrado vertical por defecto */
+    position: relative;
+  }
+  
+  .verse-container {
+    /* ← CLAVE: el contenedor se centra automáticamente con flex del body */
+    width: auto;
+    max-width: 90%;
+    min-width: 280px;
+    opacity: 0;
+    transform: translateY(20px);
+    transition: opacity 0.55s ease, transform 0.55s ease;
+    /* No necesita margin:0 auto porque flex ya lo centra */
+  }
+  
+  .verse-container.visible {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  .verse-box {
+    background: linear-gradient(135deg, rgba(0,0,0,0.88) 0%, rgba(10,12,30,0.92) 80%);
+    border: 1px solid rgba(212,175,55,0.35);
+    border-left: 5px solid #d4af37;
+    border-radius: 4px;
+    padding: 20px 40px 30px 40px;
+    position: relative;
+    box-shadow: 0 8px 60px rgba(0,0,0,.65), inset 0 1px 0 rgba(212,175,55,.15);
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    word-break: break-word;
+  }
+  
+  .verse-box::before {
+    content: '\201C';
+    position: absolute;
+    top: -8px;
+    left: 20px;
+    font-family: 'Cinzel', serif;
+    font-size: 80px;
+    color: rgba(212,175,55,.12);
+    line-height: 1;
+    pointer-events: none;
+  }
+  
+  .verse-reference {
+    font-family: 'Cinzel', serif;
+    font-size: 19px;
+    color: #d4af37;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    margin-bottom: 12px;
+    text-align: center;   /* ← Centrado */
+  }
+  
+  .verse-text {
+    font-family: 'EB Garamond', serif;
+    font-size: 30px;
+    line-height: 1.5;
+    color: #f5f0e8;
+    font-style: italic;
+    text-shadow: 0 2px 16px rgba(0,0,0,.5);
+    text-align: center;   /* ← Centrado */
+    white-space: normal;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    word-break: break-word;
+  }
+  
+  .verse-version {
+    position: absolute;
+    bottom: 14px;
+    right: 28px;
+    font-family: 'Cinzel', serif;
+    font-size: 12px;
+    color: rgba(212,175,55,.45);
+    letter-spacing: 2px;
+  }
+
+  /* ===== MISMA GAMA DE COLORES ===== */
+  body.style-light .verse-box { background: linear-gradient(135deg,rgba(255,255,255,.93),rgba(240,235,220,.96)); border-left-color:#222; border-color:rgba(0,0,0,.2); }
+  body.style-light .verse-text { color:#111; font-style:normal; }
+  body.style-light .verse-reference { color:#333; }
+  body.style-light .verse-box::before { color:rgba(0,0,0,.06); }
+  body.style-light .verse-version { color:rgba(0,0,0,.3); }
+
+  body.style-blue .verse-box { background: linear-gradient(135deg,rgba(5,15,60,.93),rgba(8,20,80,.96)); border-left-color:#7eb3ff; border-color:rgba(126,179,255,.3); }
+  body.style-blue .verse-reference { color:#7eb3ff; }
+  body.style-blue .verse-box::before { color:rgba(126,179,255,.1); }
+
+  body.style-bw .verse-box { background:rgba(0,0,0,.92); border-left-color:#fff; border-color:rgba(255,255,255,.3); }
+  body.style-bw .verse-reference { color:#fff; }
+  body.style-bw .verse-box::before { color:rgba(255,255,255,.08); }
+  body.style-bw .verse-version { color:rgba(255,255,255,.4); }
+
+  /* ===== POSICIONES (afectan solo vertical) ===== */
+  body.pos-top { justify-content: flex-start; padding-top: 40px; }
+  body.pos-center { justify-content: center; }
+  body.pos-bottom { justify-content: flex-end; padding-bottom: 40px; }
+
+  /* ===== TAMAÑOS ===== */
+  body.size-sm .verse-text { font-size: 22px; }
+  body.size-lg .verse-text { font-size: 38px; }
+  body.size-xl .verse-text { font-size: 48px; }
+
+  /* Responsive */
+  @media (max-width: 1400px) {
+    .verse-text { font-size: 26px; }
+    body.size-lg .verse-text { font-size: 34px; }
+    body.size-xl .verse-text { font-size: 42px; }
+    .verse-box { padding: 16px 30px 26px 30px; }
+  }
+</style>
+</head>
+<body id="obsBody">
+  <div class="verse-container" id="verseContainer">
+    <div class="verse-box">
+      <div class="verse-reference" id="verseRef">—</div>
+      <div class="verse-text" id="verseText"></div>
+      <span class="verse-version">RVR 1960</span>
+    </div>
+  </div>
+
+<script>
+  const container = document.getElementById('verseContainer');
+  const refEl  = document.getElementById('verseRef');
+  const textEl = document.getElementById('verseText');
+  const body   = document.getElementById('obsBody');
+
+  function applyVerse(data) {
+    if (!data || !data.text) { container.classList.remove('visible'); return; }
+    body.className = '';
+    if (data.style)    body.classList.add('style-' + data.style);
+    if (data.position) body.classList.add('pos-'   + data.position);
+    if (data.size)     body.classList.add('size-'  + data.size);
+    container.classList.remove('visible');
+    setTimeout(() => {
+      refEl.textContent  = data.ref  || '';
+      textEl.textContent = data.text;
+      container.classList.add('visible');
+    }, 80);
+  }
+
+  try {
+    const bc = new BroadcastChannel('obs_biblia');
+    bc.onmessage = e => applyVerse(e.data);
+  } catch(e){}
+
+  let lastTs = null;
+  setInterval(() => {
+    try {
+      const raw = localStorage.getItem('obs_biblia_verse');
+      if (!raw) return;
+      const d = JSON.parse(raw);
+      if (d._ts !== lastTs) { lastTs = d._ts; applyVerse(d); }
+    } catch(e){}
+  }, 300);
+</script>
+</body>
+</html>
